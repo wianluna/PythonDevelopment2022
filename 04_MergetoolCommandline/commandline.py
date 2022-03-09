@@ -7,10 +7,7 @@ import shlex
 
 GENDERS = {"female": GENDER.FEMALE, "male": GENDER.MALE}
 LANGUAGES = {"en": LANGUAGE.EN, "ru": LANGUAGE.RU, "native": LANGUAGE.NATIVE}
-
 GENERATORS = {}
-elven_default = None
-iron_kingdoms_default = None
 
 
 def get_generators():
@@ -29,28 +26,35 @@ def get_generators():
             elven_default = g
         if race == "iron_kingdoms" and iron_kingdoms_default is None:
             iron_kingdoms_default = g
-    print(GENERATORS.keys())
+    return elven_default, iron_kingdoms_default
 
 
 class NameGenerator(cmd.Cmd):
     def __init__(self):
         cmd.Cmd.__init__(self)
         self.language = LANGUAGE.NATIVE
-        get_generators()
+        self.elven_default, self.iron_kingdoms_default = get_generators()
 
     def do_language(self, args):
         language = args.lower()
         if language not in LANGUAGE.ALL:
             language = LANGUAGES["native"]
         self.language = LANGUAGES[language]
-        print(self.language)
 
-    def do_generate(self, args):
-        args = shlex.split(args)
-        if len(args) == 1 or args[1].lower() in GENDERS or args[1] == "language":
+    def create_generator(self, args):
+        if len(args) == 1 and args[0] == "elven":
+            generator = self.elven_default()
+        elif len(args) == 1 and args[0] == "iron_kingdoms":
+            generator = self.iron_kingdoms_default()
+        elif len(args) == 1 or args[1].lower() in GENDERS or args[1] == "language":
             generator = GENERATORS[(args[0], None)]()
         else:
             generator = GENERATORS[(args[0], args[1])]()
+        return generator
+
+    def do_generate(self, args):
+        args = shlex.split(args)
+        generator = self.create_generator(args)
 
         if self.language not in generator.languages:
             language = LANGUAGES["native"]
@@ -60,14 +64,11 @@ class NameGenerator(cmd.Cmd):
         if args[-1].lower() in GENDERS:
             print(generator.get_name_simple(GENDERS[args[-1].lower()], language))
         else:
-            print(generator.get_name_simple(language=language))
+            print(generator.get_name_simple(GENDERS["male"], language=language))
 
     def do_info(self, args):
         args = shlex.split(args)
-        if len(args) == 1 or args[1].lower() in GENDERS or args[1] == "language":
-            generator = GENERATORS[(args[0], None)]()
-        else:
-            generator = GENERATORS[(args[0], args[1])]()
+        generator = self.create_generator(args)
 
         if args[-1] == "language":
             print(*generator.languages)
